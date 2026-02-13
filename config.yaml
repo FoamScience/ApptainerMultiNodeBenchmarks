@@ -1,0 +1,19 @@
+containers:
+  extra_basics: .
+  basic:
+    openfoam-ib:
+      os:
+        distro: ubuntu
+        version: 24.04
+      mpi:
+        implementation: openmpi-ib
+        version: 4.1.5
+      framework:
+        definition: openfoam
+        version: 2512
+        git_ref: default
+
+pull:
+  try_to_pull: false
+  protocol: "oras"
+  scope: "ghcr.io/foamscience"
