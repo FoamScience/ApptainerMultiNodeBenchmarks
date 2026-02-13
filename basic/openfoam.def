@@ -1,0 +1,76 @@
+# ---------------------------------------------------------------------------
+#
+# Create Ubuntu-based ESI OpenFOAM image
+# Override: ensures apt-get update runs AFTER adding the OpenFOAM repo
+#
+# ---------------------------------------------------------------------------
+Bootstrap: localimage
+From: containers/basic/{{ BASE_CONTAINER }}.sif
+
+%arguments
+    OS_DISTRO=ubuntu
+    OS_VERSION=24.04
+    MPI_IMPLEMENTATION=openmpi
+    MPI_VERSION=4.1.5
+    FRAMEWORK_VERSION=2312
+    FRAMEWORK_GIT_REF=default
+
+%files
+    openfoam2512_2512.0-1_amd64.deb /opt/deb_packages/openfoam2512_2512.0-1_amd64.deb
+    openfoam2512-dev_2512.0-1_amd64.deb /opt/deb_packages/openfoam2512-dev_2512.0-1_amd64.deb
+    openfoam2512-tools_2512.0-1_amd64.deb /opt/deb_packages/openfoam2512-tools_2512.0-1_amd64.deb
+    openfoam2512-common_2512.0-1_all.deb /opt/deb_packages/openfoam2512-common_2512.0-1_all.deb
+    openfoam2512-source_2512.0-1_all.deb /opt/deb_packages/openfoam2512-source_2512.0-1_all.deb
+
+%post -c /bin/bash
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get -y install gnupg ca-certificates curl
+    apt-get -y install /opt/deb_packages/*deb
+    #if [[ {{ FRAMEWORK_GIT_REF }} == "default" ]]; then
+    #    curl -s https://dl.openfoam.com/add-debian-repo.sh | bash
+    #    apt-get update
+    #    apt-get -y install --fix-missing openfoam{{ FRAMEWORK_VERSION }}-dev python3
+    #else
+    #    apt-get install -y --no-install-recommends \
+    #        flex libfl-dev libreadline-dev zlib1g-dev libgmp-dev libmpfr-dev libmpc-dev \
+    #        libfftw3-dev libscotch-dev libptscotch-dev libboost-system-dev libboost-thread-dev libcgal-dev
+    #    mkdir -p /usr/lib/openfoam
+    #    git clone https://develop.openfoam.com/Development/openfoam /usr/lib/openfoam/openfoam{{ FRAMEWORK_VERSION }}
+    #    cd /usr/lib/openfoam/openfoam{{ FRAMEWORK_VERSION }}
+    #    git checkout {{ FRAMEWORK_GIT_REF }}
+    #    ./Allwmake -j -s -q -l
+    #fi
+    jq --arg app openfoam --arg commit {{ FRAMEWORK_GIT_REF }} \
+        --arg branch {{ FRAMEWORK_GIT_REF }} \
+        '.[$app] |= if . == null then
+        {
+            fork: "com-openfoam",
+            branch: $branch,
+            commit: $commit,
+            source_script: "/usr/lib/openfoam/openfoam{{ FRAMEWORK_VERSION }}/etc/bashrc",
+            version: "{{ FRAMEWORK_VERSION }}"
+        }
+        else . +
+        {
+            fork: "com-openfoam",
+            branch: $branch,
+            commit: $commit,
+            source_script: "/usr/lib/openfoam/openfoam{{ FRAMEWORK_VERSION }}/etc/bashrc",
+            version: "{{ FRAMEWORK_VERSION }}"
+        } end' /apps.json > /tmp/apps.json
+    mv /tmp/apps.json /apps.json
+
+%runscript
+    #!/bin/bash
+    if [ $# -eq 0 ]; then
+        exec /bin/bash
+    else
+        exec "$@"
+    fi
+
+%labels
+    Maintainer Mohammed Elwardi Fadeli
+    Description Ubuntu-based ESI OpenFOAM image with OpenMPI
+    AppsFile /apps.json
