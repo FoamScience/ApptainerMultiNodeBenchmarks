@@ -14,6 +14,6 @@ containers:
         git_ref: default
 
 pull:
-  try_to_pull: false
+  try_to_pull: true
   protocol: "oras"
   scope: "ghcr.io/foamscience"
