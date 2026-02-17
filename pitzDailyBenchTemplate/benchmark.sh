@@ -8,6 +8,7 @@
 # Usage:
 #   benchmark.sh --container SIF --nprocs N --mesh-level L --nodes 1,2,4 [OPTIONS]
 set -euo pipefail
+set -xe
 
 CONTAINER=""
 NPROCS=""
@@ -97,7 +98,7 @@ IFS=',' read -ra NODES_ARRAY <<< "$NODES_LIST"
 REQUIRED_BINS=(blockMesh decomposePar pisoFoam)
 echo "Checking container for required binaries..."
 for bin in "${REQUIRED_BINS[@]}"; do
-    if ! apptainer run "$CONTAINER" "which $bin" &>/dev/null; then
+    if ! apptainer exec "$CONTAINER" bash -c "command -v $bin" &>/dev/null; then
         echo "Error: '$bin' not found in container $CONTAINER"
         exit 1
     fi
@@ -133,7 +134,8 @@ fi
 # Case preparation (serial, on login node through the container)
 # ---------------------------------------------------------------------------
 foam_exec() {
-    apptainer run "$CONTAINER" "cd '${OUTPUT_DIR}' && $*"
+	cd "${OUTPUT_DIR}"
+    apptainer exec "$CONTAINER" "$@"
 }
 
 echo ">>> blockMesh"
@@ -173,9 +175,11 @@ for NODE_COUNT in "${NODES_ARRAY[@]}"; do
         [[ -n "$PARTITION" ]] && echo "#SBATCH --partition=${PARTITION}"
         cat <<SBATCH_EOF
 
+module load Stages/2024 GCC/12.3.0
+module load OpenMPI/4.1.5
 START_TIME=\$(date +%s.%N)
-mpirun apptainer run ${CONTAINER} "cd '${OUTPUT_DIR}' && pisoFoam -parallel"
-# Or: srun --mpi=pmix apptainer run ${CONTAINER} "cd '${OUTPUT_DIR}' && pisoFoam -parallel"
+cd "${OUTPUT_DIR}"
+srun apptainer exec ${CONTAINER} pisoFoam -parallel
 EXIT_CODE=\$?
 END_TIME=\$(date +%s.%N)
 WALL_TIME=\$(echo "\$END_TIME - \$START_TIME" | bc)
