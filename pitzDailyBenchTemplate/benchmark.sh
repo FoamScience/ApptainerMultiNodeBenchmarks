@@ -7,8 +7,7 @@
 #
 # Usage:
 #   benchmark.sh --container SIF --nprocs N --mesh-level L --nodes 1,2,4 [OPTIONS]
-set -euo pipefail
-set -xe
+set -euox pipefail
 
 CONTAINER=""
 NPROCS=""
@@ -47,7 +46,7 @@ Slurm options:
 
 Other:
   --end-time T             Simulation end time (default: 0.1)
-  --output-dir DIR         Working directory (default: /tmp/pitzDailyBench.\$\$)
+  --output-dir DIR         Working directory (default: \$PWD/pitzDailyBench.\$\$)
 
 Example:
   $0 --container bench.sif --nprocs 16 --mesh-level 3 --nodes 1,2 \\
@@ -109,7 +108,7 @@ echo "All required binaries found."
 # Setup working directory (on host / login node)
 # ---------------------------------------------------------------------------
 if [[ -z "$OUTPUT_DIR" ]]; then
-    OUTPUT_DIR="/tmp/pitzDailyBench.$$"
+    OUTPUT_DIR="${PWD}/pitzDailyBench.$$"
 fi
 OUTPUT_DIR="$(mkdir -p "$OUTPUT_DIR" && cd "$OUTPUT_DIR" && pwd)"
 cp -r "$SCRIPT_DIR"/0 "$SCRIPT_DIR"/constant "$SCRIPT_DIR"/system "$OUTPUT_DIR"/
