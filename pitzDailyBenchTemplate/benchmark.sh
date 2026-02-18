@@ -176,9 +176,11 @@ for NODE_COUNT in "${NODES_ARRAY[@]}"; do
 
 module load Stages/2024 GCC/12.3.0
 module load OpenMPI/4.1.5
+export OMPI_MCA_ess=pmi
+export OMPI_MCA_pmix=^external
 START_TIME=\$(date +%s.%N)
 cd "${OUTPUT_DIR}"
-srun apptainer exec ${CONTAINER} pisoFoam -parallel
+srun --mpi=pmi2 apptainer exec ${CONTAINER} pisoFoam -parallel
 EXIT_CODE=\$?
 END_TIME=\$(date +%s.%N)
 WALL_TIME=\$(echo "\$END_TIME - \$START_TIME" | bc)
