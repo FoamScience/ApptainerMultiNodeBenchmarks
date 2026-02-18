@@ -152,7 +152,7 @@ foam_exec decomposePar > "$OUTPUT_DIR/decomposePar.log" 2>&1
 # Submit solver for each node count
 # ---------------------------------------------------------------------------
 CSV_FILE="${OUTPUT_DIR}/benchmark_results.csv"
-echo "nodes,nprocs,mesh_level,cells,wall_time_seconds,exit_code" > "$CSV_FILE"
+echo "nodes,nprocs,mesh_level,cells,elapsed_seconds,exit_code" > "$CSV_FILE"
 
 for NODE_COUNT in "${NODES_ARRAY[@]}"; do
     TASKS_PER_NODE=$(( (NPROCS + NODE_COUNT - 1) / NODE_COUNT ))
@@ -178,14 +178,8 @@ module load Stages/2024 GCC/12.3.0
 module load OpenMPI/4.1.5
 export OMPI_MCA_ess=pmi
 export OMPI_MCA_pmix=^external
-START_TIME=\$(date +%s.%N)
 cd "${OUTPUT_DIR}"
 srun --mpi=pmi2 apptainer exec ${CONTAINER} pisoFoam -parallel
-EXIT_CODE=\$?
-END_TIME=\$(date +%s.%N)
-WALL_TIME=\$(echo "\$END_TIME - \$START_TIME" | bc)
-
-echo "${NODE_COUNT},${NPROCS},${MESH_LEVEL},${CELL_COUNT},\${WALL_TIME},\${EXIT_CODE}" >> "${CSV_FILE}"
 SBATCH_EOF
     } > "${RUN_DIR}/solver.sbatch"
 
@@ -193,6 +187,11 @@ SBATCH_EOF
     # shellcheck disable=SC2086
     JOBID=$(sbatch --parsable --wait ${SBATCH_EXTRA} "${RUN_DIR}/solver.sbatch")
     echo "    Slurm job ${JOBID} completed"
+
+    # Query Slurm accounting for elapsed time and exit code
+    ELAPSED_RAW=$(sacct -j "$JOBID" --format=ElapsedRaw --noheader --parsable2 -X | head -1)
+    EXIT_CODE=$(sacct -j "$JOBID" --format=ExitCode --noheader --parsable2 -X | head -1 | cut -d: -f1)
+    echo "${NODE_COUNT},${NPROCS},${MESH_LEVEL},${CELL_COUNT},${ELAPSED_RAW},${EXIT_CODE}" >> "${CSV_FILE}"
 done
 
 # ---------------------------------------------------------------------------
